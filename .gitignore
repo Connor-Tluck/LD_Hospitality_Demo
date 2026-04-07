@@ -1,0 +1,41 @@
+# Dependencies (workspace root + packages)
+node_modules/
+
+# OS / editor
+.DS_Store
+*.swp
+*.swo
+
+# Environment and secrets — never commit real keys
+.env
+.env.local
+.env.*.local
+# LaunchDarkly CLI (local token for uploads — never commit)
+.ldclirc
+ldcli.yaml
+
+# Build / caches
+dist/
+build/
+*.tsbuildinfo
+.turbo/
+.next/
+.expo/
+web-build/
+
+# LaunchDarkly local sourcemap output (see mobile/scripts/generate-ld-sourcemaps.sh)
+**/.ld-sourcemaps/
+
+# Logs
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# Certificates / signing (if ever added at repo root)
+*.pem
+*.p12
+*.jks
+*.key
+!*.key.ts
+!*.key.tsx

@@ -1,0 +1,13 @@
+{
+  "name": "hospitality-monorepo",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "server",
+    "mobile"
+  ],
+  "scripts": {
+    "dev:server": "npm run dev --workspace=@hospitality/server",
+    "dev:mobile": "npm run start --workspace=mobile"
+  }
+}

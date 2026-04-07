@@ -1,0 +1,7 @@
+# ld-find-code-refs defaults (used by launchdarkly/find-code-references GitHub Action).
+# Secrets (LD_ACCESS_TOKEN, projKey) come from the workflow / GitHub secrets — not from this file.
+
+contextLines: 2
+repoType: github
+repoUrl: https://github.com/Connor-Tluck/LD_Hopsitality_Demo
+defaultBranch: main
