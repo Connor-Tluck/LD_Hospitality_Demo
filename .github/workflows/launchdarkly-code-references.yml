@@ -25,11 +25,12 @@ jobs:
         with:
           fetch-depth: 11
 
+      # Use repository name only — LD API rejects names containing `/` (github.repository is owner/repo).
       - name: LaunchDarkly code references
         uses: launchdarkly/find-code-references@v2.14.0
         with:
           accessToken: ${{ secrets.LD_ACCESS_TOKEN }}
           projKey: ${{ secrets.LD_PROJECT_KEY }}
           contextLines: 2
-          repoName: ${{ github.repository }}
+          repoName: ${{ github.event.repository.name }}
           baseUri: https://app.launchdarkly.com
