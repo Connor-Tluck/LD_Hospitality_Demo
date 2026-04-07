@@ -1,0 +1,3 @@
+# ld-find-code-refs: skip the file where flag keys are string literals only.
+# Aliases in .launchdarkly/coderefs.yaml match imported constants at real usage sites.
+mobile/src/lib/ld/flags.ts

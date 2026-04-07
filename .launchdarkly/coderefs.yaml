@@ -1,7 +1,19 @@
 # ld-find-code-refs defaults (used by launchdarkly/find-code-references GitHub Action).
 # Secrets (LD_ACCESS_TOKEN, projKey) come from the workflow / GitHub secrets — not from this file.
+#
+# Flag keys as string literals only live in flags.ts; screens import constants. Without aliases,
+# code refs only pointed at flags.ts. Literal aliases + `.ldignore` on flags.ts surface real call sites.
+# https://github.com/launchdarkly/ld-find-code-refs/blob/main/docs/ALIASES.md
 
 contextLines: 2
 repoType: github
 repoUrl: https://github.com/Connor-Tluck/LD_Hospitality_Demo
 defaultBranch: main
+
+aliases:
+  - type: literal
+    flags:
+      demo-home-feature:
+        - LD_FLAG_DEMO_HOME_PROMO
+      demo-bookings-calendar:
+        - LD_FLAG_BOOKINGS_CALENDAR
