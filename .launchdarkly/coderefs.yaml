@@ -17,3 +17,5 @@ aliases:
         - LD_FLAG_DEMO_HOME_PROMO
       demo-bookings-calendar:
         - LD_FLAG_BOOKINGS_CALENDAR
+      chat-support:
+        - LD_FLAG_CHAT_SUPPORT

@@ -2,8 +2,7 @@ import { useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
 
 /**
- * Clears the session; `(tabs)/_layout` runs a one-shot `router.replace("/")` in an effect
- * when `!user` so we do not replace from here after the Tabs navigator unmounts.
+ * Clears the session; `signOut` navigates to `/welcome` (avoids `index` vs `(tabs)/index` replace ambiguity).
  */
 export function useSignOutToWelcome() {
   const { signOut } = useAuth();

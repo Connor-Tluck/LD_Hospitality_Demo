@@ -1,5 +1,6 @@
 import type { Org } from "@hospitality/shared";
 import * as SecureStore from "expo-secure-store";
+import { router } from "expo-router";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { fetchMe, loginUser, registerUser } from "../lib/api";
 import type { SessionUser } from "../lib/ld/buildContext";
@@ -123,6 +124,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null);
     setUser(null);
     setOrg(null);
+    // `replace("/")` targets screen name `index`, which clashes with `(tabs)/index` → unhandled REPLACE. Use `/welcome`.
+    // `setTimeout` avoids dispatch during the same Fabric microtask pass as the state update.
+    setTimeout(() => {
+      router.replace("/welcome");
+    }, 0);
   }, []);
 
   const value = useMemo<AuthContextValue>(

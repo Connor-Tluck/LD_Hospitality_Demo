@@ -1,27 +1,22 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { Tabs, useRouter } from "expo-router";
-import { useEffect, useRef } from "react";
+import { router, Tabs } from "expo-router";
+import { useEffect } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../src/context/AuthContext";
 import { colors, fontFamily } from "../../src/theme/tokens";
 
 export default function TabLayout() {
-  const router = useRouter();
   const { user, loading } = useAuth();
   const insets = useSafeAreaInsets();
-  /** `<Redirect href="/" />` re-fired navigation each render → max update depth. One-shot replace in an effect instead. */
-  const didKickToWelcomeRef = useRef(false);
 
+  // If hydrate clears the session while tabs are showing, leave via `/welcome` (not `/` — index name clash with tab index).
   useEffect(() => {
-    if (loading) return;
-    if (user) {
-      didKickToWelcomeRef.current = false;
-      return;
-    }
-    if (didKickToWelcomeRef.current) return;
-    didKickToWelcomeRef.current = true;
-    router.replace("/");
-  }, [loading, user, router]);
+    if (loading || user) return;
+    const t = setTimeout(() => {
+      router.replace("/welcome");
+    }, 0);
+    return () => clearTimeout(t);
+  }, [loading, user]);
 
   if (loading) {
     return null;

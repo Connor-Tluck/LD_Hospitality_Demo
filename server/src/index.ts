@@ -1,7 +1,14 @@
+import "./loadEnv.js";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import type { AuthResponse, LoginBody, MeResponse, RegisterBody } from "@hospitality/shared";
+import {
+  getChatSupportWelcome,
+  runChatSupportTurn,
+  type ChatSupportBody,
+  type ChatSupportWelcomeBody,
+} from "./chatSupport.js";
 import {
   createUser,
   getUserIdForToken,
@@ -107,6 +114,41 @@ app.get("/me", (c) => {
     org,
   };
   return c.json(payload);
+});
+
+app.post("/ai/chat-support", async (c) => {
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "Invalid JSON" }, 400);
+  }
+  const result = await runChatSupportTurn(authHeader(c), body as ChatSupportBody);
+  if ("error" in result) {
+    return new Response(JSON.stringify({ error: result.error }), {
+      status: result.status,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+  return c.json(result);
+});
+
+app.post("/ai/chat-support/welcome", async (c) => {
+  let body: ChatSupportWelcomeBody = {};
+  try {
+    const raw = await c.req.json();
+    if (raw && typeof raw === "object") body = raw as ChatSupportWelcomeBody;
+  } catch {
+    body = {};
+  }
+  const result = await getChatSupportWelcome(authHeader(c), body);
+  if ("error" in result) {
+    return new Response(JSON.stringify({ error: result.error }), {
+      status: result.status,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+  return c.json(result);
 });
 
 const port = Number(process.env.PORT) || 8787;

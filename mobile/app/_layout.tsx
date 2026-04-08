@@ -9,6 +9,7 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { ChatSupportOverlay } from "../src/components/ChatSupportOverlay";
 import { AuthProvider } from "../src/context/AuthContext";
 import { LDIdentifyBridge } from "../src/context/LDIdentifyBridge";
 import { getLDClient, LDProvider } from "../src/lib/ld/client";
@@ -41,6 +42,7 @@ export default function RootLayout() {
       <LDProvider client={ldClient}>
         <AuthProvider>
           <LDIdentifyBridge />
+          <ChatSupportOverlay />
           <Stack
             screenOptions={{
               headerShown: false,

@@ -1,4 +1,4 @@
-import { useBoolVariation } from "@launchdarkly/react-native-client-sdk";
+import { useBoolVariation, useLDClient } from "@launchdarkly/react-native-client-sdk";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { Link, useRouter } from "expo-router";
@@ -16,7 +16,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../src/context/AuthContext";
 import { useSignOutToWelcome } from "../../src/hooks/useSignOutToWelcome";
 import { FEATURED_HOTELS, HOME_EXPERIENCE_TILES, profilePhotoUrl } from "../../src/data/demoContent";
-import { LD_FLAG_DEMO_HOME_PROMO } from "../../src/lib/ld/flags";
+import {
+  LD_EVENT_DEMO_HOME_PROMO_CTA_CLICK,
+  LD_FLAG_DEMO_HOME_PROMO,
+} from "../../src/lib/ld/flags";
 import { colors, fontFamily, radii } from "../../src/theme/tokens";
 const TAB_BAR_SPACE = 120;
 
@@ -25,6 +28,7 @@ export default function HomeTabScreen() {
   const router = useRouter();
   const { user, org } = useAuth();
   const signOutToWelcome = useSignOutToWelcome();
+  const ldClient = useLDClient();
   const demoHomeEnabled = useBoolVariation(LD_FLAG_DEMO_HOME_PROMO, false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -65,7 +69,10 @@ export default function HomeTabScreen() {
                 </Text>
               </View>
               <Pressable
-                onPress={() => router.push("/explore")}
+                onPress={() => {
+                  ldClient.track(LD_EVENT_DEMO_HOME_PROMO_CTA_CLICK, { flagKey: LD_FLAG_DEMO_HOME_PROMO });
+                  router.push("/explore");
+                }}
                 style={({ pressed }) => [styles.promoCta, pressed && styles.pressed]}
                 accessibilityRole="button"
                 accessibilityLabel="See rewards benefits"
