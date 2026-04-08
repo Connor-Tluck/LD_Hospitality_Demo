@@ -23,9 +23,8 @@ Screens from the app live in [`mobile/src/images/`](mobile/src/images/).
 
 | | |
 |:--|:--|
-| ![App UI 1](mobile/src/images/image.png) | ![App UI 2](mobile/src/images/image%20(1).png) |
-| ![App UI 3](mobile/src/images/image%20(2).png) | ![App UI 4](mobile/src/images/image%20(3).png) |
-| ![App UI 5](mobile/src/images/image%20(4).png) | |
+| ![App UI 1](mobile/src/images/image%20(1).png) | ![App UI 2](mobile/src/images/image%20(2).png) |
+| ![App UI 3](mobile/src/images/image%20(3).png) | ![App UI 4](mobile/src/images/image%20(4).png) |
 
 ## What this demo is for
 
