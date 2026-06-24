@@ -18,6 +18,32 @@ import { colors, fontFamily, radii } from "../../src/theme/tokens";
 
 type Phase = "loading" | "error";
 
+/** Named error type so it groups cleanly and reads well in LaunchDarkly Observability + Vega. */
+class CalendarServiceError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CalendarServiceError";
+  }
+}
+
+/**
+ * Simulated calendar service call path. The failure is thrown several frames deep so the
+ * captured stack trace is multi-frame and demo-friendly:
+ *   parseCalendarResponse  <-  fetchTripDates  <-  loadTripCalendar
+ * Flag/session context travels as span + error attributes (not stuffed into the message).
+ * In a production build, upload source maps (scripts/generate-ld-sourcemaps.sh) so these
+ * frames symbolicate to file:line in the LaunchDarkly UI.
+ */
+function parseCalendarResponse(): never {
+  throw new CalendarServiceError("Calendar service returned 503 while fetching trip dates");
+}
+function fetchTripDates(): never {
+  return parseCalendarResponse();
+}
+function loadTripCalendar(): never {
+  return fetchTripDates();
+}
+
 /**
  * Demo screen: intentional failure path so LaunchDarkly Observability receives
  * errors, logs, and metrics (and session correlation when replay is enabled in your LD project).
@@ -42,7 +68,6 @@ export default function BookingsCalendarScreen() {
           ? String((LDObserve.getSessionInfo() as { sessionId?: string })?.sessionId ?? "")
           : "";
 
-      /** Dev Metro bundles use virtual URLs — stacks won’t match production source maps; flag context lives here + attributes. */
       const attrs = {
         "demo.flow": "bookings-calendar",
         "ld.flag.key": LD_FLAG_BOOKINGS_CALENDAR,
@@ -52,18 +77,17 @@ export default function BookingsCalendarScreen() {
         ...(sessionId ? { "observability.session.id": sessionId } : {}),
       } as const;
 
-      const err = new Error(
-        `[${LD_FLAG_BOOKINGS_CALENDAR}=${flagCalendarOn ? "on" : "off"}] ` +
-          (sessionId ? `[session=${sessionId}] ` : "") +
-          (__DEV__ ? "[dev-bundle stacks are not source-mapped to prod uploads] " : "") +
-          "Calendar service unavailable — demo error for LaunchDarkly Observability (bookings calendar)"
-      );
-
+      // Drive the failure through the named call chain so the captured stack is multi-frame.
       LDObserve.startActiveSpan("demo.bookings_calendar.load", (span) => {
         span.setAttributes({ ...attrs });
-        LDObserve.recordError(err, { ...attrs });
-        span.recordException(err);
-        span.setStatus({ code: SpanStatusCode.ERROR, message: err.message });
+        try {
+          loadTripCalendar();
+        } catch (e) {
+          const err = e instanceof Error ? e : new Error(String(e));
+          LDObserve.recordError(err, { ...attrs });
+          span.recordException(err);
+          span.setStatus({ code: SpanStatusCode.ERROR, message: err.message });
+        }
       });
 
       LDObserve.recordLog(

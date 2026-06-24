@@ -1,6 +1,7 @@
-import { init, type LDClient, type LDContext } from "@launchdarkly/node-server-sdk";
-import { initAi, type LDAIClient } from "@launchdarkly/server-sdk-ai";
+import { type LDContext } from "@launchdarkly/node-server-sdk";
+import { type LDAIClient } from "@launchdarkly/server-sdk-ai";
 import OpenAI from "openai";
+import { getLdClients } from "./observability.js";
 import { getUserIdForToken, usersByEmail } from "./store.js";
 
 const LOCAL_DEMO_TOKEN = "local-demo-token";
@@ -13,6 +14,8 @@ export type ChatLdUserPayload = {
   name?: string;
   orgId?: string;
   membershipTier?: string;
+  homeLocation?: string;
+  region?: string;
 };
 
 export type ChatSupportBody = {
@@ -24,23 +27,6 @@ export type ChatSupportBody = {
 export type ChatSupportWelcomeBody = {
   ldUser?: ChatLdUserPayload;
 };
-
-let clientsPromise: Promise<{ ld: LDClient; ai: LDAIClient }> | null = null;
-
-async function getLdClients(): Promise<{ ld: LDClient; ai: LDAIClient }> {
-  if (!clientsPromise) {
-    clientsPromise = (async () => {
-      const sdkKey = process.env.LAUNCHDARKLY_SDK_KEY;
-      if (!sdkKey?.trim()) {
-        throw new Error("LAUNCHDARKLY_SDK_KEY is not set");
-      }
-      const ld = init(sdkKey);
-      await ld.waitForInitialization({ timeout: 25 });
-      return { ld, ai: initAi(ld) };
-    })();
-  }
-  return clientsPromise;
-}
 
 /**
  * AI Config key in LaunchDarkly (completion mode, OpenAI provider). Variations (e.g. “Booking Support” vs “Hostile Bot”)
@@ -109,6 +95,8 @@ function ldContextFromUser(u: {
   name: string;
   orgId: string;
   membershipTier?: string;
+  homeLocation?: string;
+  region?: string;
 }): LDContext {
   const ctx: Record<string, unknown> = {
     kind: "user",
@@ -118,7 +106,25 @@ function ldContextFromUser(u: {
     orgId: u.orgId,
   };
   if (u.membershipTier) ctx.membershipTier = u.membershipTier;
+  if (u.homeLocation) ctx.homeLocation = u.homeLocation;
+  if (u.region) ctx.region = u.region;
   return ctx as LDContext;
+}
+
+/**
+ * Variables made available to the AI Config prompt template (Mustache). The guest's
+ * tier/location are passed here so prompts can reference `{{membershipTier}}`,
+ * `{{homeLocation}}`, and `{{region}}` directly. (Targeting uses the LD context;
+ * template interpolation only sees what we pass in this map.)
+ */
+function promptVariables(context: LDContext, firstName: string): Record<string, string> {
+  const vars: Record<string, string> = { guestName: firstName };
+  const attrs = context as unknown as Record<string, unknown>;
+  for (const key of ["membershipTier", "homeLocation", "region"] as const) {
+    const v = attrs[key];
+    if (typeof v === "string" && v.trim()) vars[key] = v.trim();
+  }
+  return vars;
 }
 
 function resolveLdUser(
@@ -163,6 +169,8 @@ function resolveLdUser(
         name: lu.name ?? "Guest",
         orgId: lu.orgId ?? "org-demo-1",
         membershipTier: lu.membershipTier,
+        homeLocation: lu.homeLocation,
+        region: lu.region,
       }),
     };
   }
@@ -216,7 +224,7 @@ export async function getChatSupportWelcome(
     aiConfigKey(),
     auth.context,
     AI_CONFIG_FALLBACK_DISABLED,
-    { guestName: firstName }
+    promptVariables(auth.context, firstName)
   );
 
   if (!config.enabled) {
@@ -281,7 +289,7 @@ export async function runChatSupportTurn(
     aiConfigKey(),
     auth.context,
     AI_CONFIG_FALLBACK_DISABLED,
-    { guestName: firstName },
+    promptVariables(auth.context, firstName),
     "openai"
   );
 

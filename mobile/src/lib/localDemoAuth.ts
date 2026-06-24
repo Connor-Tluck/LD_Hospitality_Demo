@@ -5,7 +5,7 @@ import {
   resolveDemoProfileByEmail,
 } from "../data/demoContent";
 
-/** Session marker stored in SecureStore alongside profile JSON. */
+/** Session marker stored with the profile JSON (SecureStore on native, localStorage on web). */
 export const LOCAL_DEMO_TOKEN = "local-demo-token";
 
 export const LOCAL_DEMO_PROFILE_KEY = "hospitality_local_demo_profile";

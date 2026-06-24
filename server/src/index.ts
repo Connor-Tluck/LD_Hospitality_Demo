@@ -1,4 +1,6 @@
 import "./loadEnv.js";
+import { LDObserve } from "@launchdarkly/observability-node";
+import { SpanKind, SpanStatusCode, trace } from "@opentelemetry/api";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -9,6 +11,7 @@ import {
   type ChatSupportBody,
   type ChatSupportWelcomeBody,
 } from "./chatSupport.js";
+import { initObservability, SERVER_SERVICE_NAME } from "./observability.js";
 import {
   createUser,
   getUserIdForToken,
@@ -18,7 +21,51 @@ import {
   verifyPassword,
 } from "./store.js";
 
+// Start the LaunchDarkly client + Observability plugin at boot so the OpenTelemetry provider is
+// registered before the first request (request spans/metrics export from request #1).
+initObservability();
+
 const app = new Hono();
+
+const tracer = trace.getTracer(SERVER_SERVICE_NAME);
+
+/**
+ * Per-request SERVER span (its duration = request latency) + request count/duration metrics,
+ * all exported to LaunchDarkly Observability. This is what populates the backend dashboard's
+ * request / duration / throughput cards and enables mobile → API → LLM traces.
+ */
+app.use("*", async (c, next) => {
+  const method = c.req.method;
+  const path = new URL(c.req.url).pathname;
+  const start = performance.now();
+  await tracer.startActiveSpan(`${method} ${path}`, { kind: SpanKind.SERVER }, async (span) => {
+    span.setAttributes({ "http.request.method": method, "http.route": path, "url.path": path });
+    try {
+      await next();
+    } catch (err) {
+      span.recordException(err instanceof Error ? err : new Error(String(err)));
+      span.setStatus({ code: SpanStatusCode.ERROR });
+      throw err;
+    } finally {
+      const status = c.res?.status ?? 0;
+      const durationMs = performance.now() - start;
+      span.setAttribute("http.response.status_code", status);
+      if (status >= 500) span.setStatus({ code: SpanStatusCode.ERROR });
+      try {
+        const tags = [
+          { name: "http.route", value: path },
+          { name: "http.request.method", value: method },
+          { name: "http.response.status_code", value: String(status) },
+        ];
+        LDObserve.recordHistogram({ name: "http.server.request.duration", value: durationMs, tags });
+        LDObserve.recordCount({ name: "http.server.request.count", value: 1, tags });
+      } catch {
+        /* observability not initialized (e.g. no SDK key) — ignore */
+      }
+      span.end();
+    }
+  });
+});
 
 app.use(
   "*",

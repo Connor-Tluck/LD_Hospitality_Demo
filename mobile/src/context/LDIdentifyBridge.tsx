@@ -8,7 +8,7 @@ import { getOrCreateDeviceInstallId } from "../lib/deviceId";
  * Keeps LaunchDarkly context in sync with auth + stable device id (multi-kind: user, organization, device).
  * Context includes permissions/betaAccess, parsed name, locale/region/timezone on device, and org plan metadata.
  */
-export function LDIdentifyBridge() {
+export function LDIdentifyBridge({ onReady }: { onReady?: () => void }) {
   const client = useLDClient();
   const { user, org, loading } = useAuth();
   const [deviceId, setDeviceId] = useState<string | null>(null);
@@ -20,6 +20,7 @@ export function LDIdentifyBridge() {
   useEffect(() => {
     if (loading || !deviceId) return;
 
+    let cancelled = false;
     void (async () => {
       const session =
         user && org
@@ -33,9 +34,17 @@ export function LDIdentifyBridge() {
         await client.identify(ctx);
       } catch (e) {
         console.warn("[LaunchDarkly] identify failed", e);
+      } finally {
+        // Flags for this context are loaded now — signal ready (on success or failure) so
+        // the app can mount its flag-reading UI without evaluating before initialization.
+        if (!cancelled) onReady?.();
       }
     })();
-  }, [client, loading, deviceId, user, org]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [client, loading, deviceId, user, org, onReady]);
 
   return null;
 }

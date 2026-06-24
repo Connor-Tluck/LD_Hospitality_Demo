@@ -1,3 +1,4 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { Link, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
@@ -12,12 +13,17 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useLDClient } from "@launchdarkly/react-native-client-sdk";
 import { useAuth } from "../src/context/AuthContext";
+import { LD_EVENT_PROMO_BANNER_REWARDS_SIGNUP, LD_FLAG_PROMO_BANNER_VARIANT } from "../src/lib/ld/flags";
 import { colors, fontFamily, radii } from "../src/theme/tokens";
 
 export default function SignUpScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { signUp } = useAuth();
+  const ldClient = useLDClient();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -37,6 +43,8 @@ export default function SignUpScreen() {
     setBusy(true);
     try {
       await signUp(name.trim(), email.trim(), password);
+      // Rewards-account conversion (the Guest banner variation's goal).
+      ldClient.track(LD_EVENT_PROMO_BANNER_REWARDS_SIGNUP, { flagKey: LD_FLAG_PROMO_BANNER_VARIANT });
       router.replace("/(tabs)");
     } catch (e) {
       Alert.alert("Sign up failed", e instanceof Error ? e.message : "Unknown error");
@@ -51,6 +59,18 @@ export default function SignUpScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <StatusBar style="dark" />
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <Pressable
+          onPress={() => (router.canGoBack() ? router.back() : router.replace("/welcome"))}
+          hitSlop={12}
+          style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="chevron-back" size={24} color={colors.accentPrimary} />
+          <Text style={styles.backLabel}>Back</Text>
+        </Pressable>
+      </View>
       <ScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
@@ -131,7 +151,22 @@ export default function SignUpScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.surfacePrimary },
-  scroll: { paddingHorizontal: 24, paddingTop: 48, paddingBottom: 40 },
+  header: { paddingHorizontal: 24, paddingBottom: 4 },
+  backBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    paddingVertical: 8,
+    paddingRight: 12,
+    marginLeft: -4,
+  },
+  backLabel: {
+    fontFamily: fontFamily.medium,
+    fontSize: 16,
+    color: colors.accentPrimary,
+    marginLeft: -2,
+  },
+  scroll: { paddingHorizontal: 24, paddingTop: 8, paddingBottom: 40 },
   accentLine: {
     width: 40,
     height: 3,

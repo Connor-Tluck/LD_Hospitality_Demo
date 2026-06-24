@@ -2,6 +2,26 @@ import type { AuthResponse, LoginBody, MeResponse, RegisterBody, SessionUserPubl
 import { getApiBaseUrl } from "./config";
 import { isLocalDemoAuthEnabled, LOCAL_DEMO_TOKEN } from "./localDemoAuth";
 
+/**
+ * The booking assistant calls the **local Hono API** (`/ai/chat-support`), which then talks to LaunchDarkly AI Configs.
+ * A raw "Network request failed" means the phone could not open a TCP connection — usually the API is not running,
+ * the URL is wrong (e.g. 127.0.0.1 on a physical device), or Android is blocking cleartext HTTP.
+ */
+async function fetchApi(path: string, init?: RequestInit): Promise<Response> {
+  const base = getApiBaseUrl();
+  const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
+  try {
+    return await fetch(url, init);
+  } catch (e) {
+    const orig = e instanceof Error ? e.message : String(e);
+    throw new Error(
+      `${orig}\n\n` +
+        `Could not reach the mock API at ${base}. Run \`npm run dev:server\` from the repo root. ` +
+        `On a physical device, set EXPO_PUBLIC_API_URL=http://<your-computer-LAN-IP>:8787 in mobile/.env.local and restart Expo.`
+    );
+  }
+}
+
 async function parseJson<T>(res: Response): Promise<T> {
   const text = await res.text();
   try {
@@ -12,7 +32,7 @@ async function parseJson<T>(res: Response): Promise<T> {
 }
 
 export async function registerUser(body: RegisterBody): Promise<AuthResponse> {
-  const res = await fetch(`${getApiBaseUrl()}/auth/register`, {
+  const res = await fetchApi("/auth/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -25,7 +45,7 @@ export async function registerUser(body: RegisterBody): Promise<AuthResponse> {
 }
 
 export async function loginUser(body: LoginBody): Promise<AuthResponse> {
-  const res = await fetch(`${getApiBaseUrl()}/auth/login`, {
+  const res = await fetchApi("/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -38,7 +58,7 @@ export async function loginUser(body: LoginBody): Promise<AuthResponse> {
 }
 
 export async function fetchMe(token: string): Promise<MeResponse> {
-  const res = await fetch(`${getApiBaseUrl()}/me`, {
+  const res = await fetchApi("/me", {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) {
@@ -67,10 +87,12 @@ export async function postChatSupport(
       name: user.name,
       orgId: user.orgId,
       ...(user.membershipTier != null ? { membershipTier: user.membershipTier } : {}),
+      ...(user.homeLocation != null ? { homeLocation: user.homeLocation } : {}),
+      ...(user.countryCode != null ? { region: user.countryCode } : {}),
     };
   }
 
-  const res = await fetch(`${getApiBaseUrl()}/ai/chat-support`, {
+  const res = await fetchApi("/ai/chat-support", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -95,10 +117,12 @@ export async function fetchChatWelcome(token: string, user: SessionUserPublic): 
       name: user.name,
       orgId: user.orgId,
       ...(user.membershipTier != null ? { membershipTier: user.membershipTier } : {}),
+      ...(user.homeLocation != null ? { homeLocation: user.homeLocation } : {}),
+      ...(user.countryCode != null ? { region: user.countryCode } : {}),
     };
   }
 
-  const res = await fetch(`${getApiBaseUrl()}/ai/chat-support/welcome`, {
+  const res = await fetchApi("/ai/chat-support/welcome", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

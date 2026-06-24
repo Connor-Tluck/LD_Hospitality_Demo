@@ -8,6 +8,14 @@
   ],
   "scripts": {
     "dev:server": "npm run dev --workspace=@hospitality/server",
-    "dev:mobile": "npm run start --workspace=mobile"
+    "dev:mobile": "npm run start --workspace=mobile",
+    "dev": "concurrently -k -n server,expo -c green,cyan \"npm:dev:server\" \"npm:dev:mobile\"",
+    "dev:ios": "concurrently -k -n server,expo -c green,cyan \"npm:dev:server\" \"npm run ios --workspace=mobile\"",
+    "seed:experiment": "node server/scripts/seed-experiment.mjs",
+    "build:web-demo": "npm run build:web-demo --workspace=mobile",
+    "preview:web-demo": "npm run preview:web-demo --workspace=mobile"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.3"
   }
 }

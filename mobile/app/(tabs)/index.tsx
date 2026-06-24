@@ -1,10 +1,15 @@
-import { useBoolVariation, useLDClient } from "@launchdarkly/react-native-client-sdk";
+import {
+  useBoolVariation,
+  useLDClient,
+  type ReactNativeLDClient,
+} from "@launchdarkly/react-native-client-sdk";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { Link, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
+  InteractionManager,
   Modal,
   Pressable,
   ScrollView,
@@ -14,14 +19,37 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../src/context/AuthContext";
+import { PromoBannerVariant, usePromoBannerKey } from "../../src/components/PromoBannerVariant";
 import { useSignOutToWelcome } from "../../src/hooks/useSignOutToWelcome";
 import { FEATURED_HOTELS, HOME_EXPERIENCE_TILES, profilePhotoUrl } from "../../src/data/demoContent";
 import {
   LD_EVENT_DEMO_HOME_PROMO_CTA_CLICK,
   LD_FLAG_DEMO_HOME_PROMO,
 } from "../../src/lib/ld/flags";
+import {
+  recordHomePromoInteractiveLatency,
+  recordHomePromoLoadError,
+} from "../../src/lib/ld/homePromoMetrics";
 import { colors, fontFamily, radii } from "../../src/theme/tokens";
 const TAB_BAR_SPACE = 120;
+
+function HomePromoTelemetry({ ldClient }: { ldClient: ReactNativeLDClient }) {
+  useEffect(() => {
+    const t0 = globalThis.performance.now();
+    const task = InteractionManager.runAfterInteractions(() => {
+      try {
+        const ms = globalThis.performance.now() - t0;
+        recordHomePromoInteractiveLatency(ldClient, ms);
+      } catch (e) {
+        const err = e instanceof Error ? e : new Error(String(e));
+        recordHomePromoLoadError(ldClient, err);
+      }
+    });
+    return () => task.cancel?.();
+  }, [ldClient]);
+
+  return null;
+}
 
 export default function HomeTabScreen() {
   const insets = useSafeAreaInsets();
@@ -38,18 +66,24 @@ export default function HomeTabScreen() {
 
   const firstName = user.name.split(" ")[0] ?? "Guest";
 
-  const scrollTopPad = demoHomeEnabled ? 16 : insets.top + 8;
+  // Whichever banner is topmost absorbs the safe-area inset; with no banner, the scroll content does.
+  const bannerKey = usePromoBannerKey();
+  const aBannerShows = bannerKey != null || demoHomeEnabled;
+  const scrollTopPad = aBannerShows ? 16 : insets.top + 8;
 
   return (
     <View style={styles.root}>
       <StatusBar style="dark" />
+      <PromoBannerVariant />
       {demoHomeEnabled ? (
+        <>
+          <HomePromoTelemetry ldClient={ldClient} />
         <LinearGradient
           colors={["#FFFDF7", "#F8F0DD", colors.surfacePrimary]}
           locations={[0, 0.45, 1]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={[styles.promoBanner, { paddingTop: insets.top }]}
+          style={[styles.promoBanner, { paddingTop: bannerKey ? 8 : insets.top }]}
         >
           <View style={styles.promoAccent} />
           <View style={styles.promoInner}>
@@ -71,7 +105,7 @@ export default function HomeTabScreen() {
               <Pressable
                 onPress={() => {
                   ldClient.track(LD_EVENT_DEMO_HOME_PROMO_CTA_CLICK, { flagKey: LD_FLAG_DEMO_HOME_PROMO });
-                  router.push("/explore");
+                  router.push("/promo/rewards");
                 }}
                 style={({ pressed }) => [styles.promoCta, pressed && styles.pressed]}
                 accessibilityRole="button"
@@ -85,6 +119,7 @@ export default function HomeTabScreen() {
             </Text>
           </View>
         </LinearGradient>
+        </>
       ) : null}
       <ScrollView
         style={styles.scrollMain}

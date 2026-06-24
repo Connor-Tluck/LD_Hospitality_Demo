@@ -1,7 +1,7 @@
 import type { Org } from "@hospitality/shared";
-import * as SecureStore from "expo-secure-store";
 import { router } from "expo-router";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { storageDelete, storageGet, storageSet } from "../lib/appStorage";
 import { fetchMe, loginUser, registerUser } from "../lib/api";
 import type { SessionUser } from "../lib/ld/buildContext";
 import {
@@ -37,7 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const hydrate = useCallback(async () => {
     setLoading(true);
     try {
-      const t = await SecureStore.getItemAsync(TOKEN_KEY);
+      const t = await storageGet(TOKEN_KEY);
       if (!t) {
         setToken(null);
         setUser(null);
@@ -45,9 +45,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       if (isLocalDemoAuthEnabled() && t === LOCAL_DEMO_TOKEN) {
-        const raw = await SecureStore.getItemAsync(LOCAL_DEMO_PROFILE_KEY);
+        const raw = await storageGet(LOCAL_DEMO_PROFILE_KEY);
         if (!raw) {
-          await SecureStore.deleteItemAsync(TOKEN_KEY);
+          await storageDelete(TOKEN_KEY);
           setToken(null);
           setUser(null);
           setOrg(null);
@@ -64,8 +64,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(me.user);
       setOrg(me.org);
     } catch {
-      await SecureStore.deleteItemAsync(TOKEN_KEY);
-      await SecureStore.deleteItemAsync(LOCAL_DEMO_PROFILE_KEY);
+      await storageDelete(TOKEN_KEY);
+      await storageDelete(LOCAL_DEMO_PROFILE_KEY);
       setToken(null);
       setUser(null);
       setOrg(null);
@@ -84,15 +84,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error("Enter email and password.");
       }
       const res = buildLocalDemoSession({ email });
-      await SecureStore.setItemAsync(TOKEN_KEY, res.token);
-      await SecureStore.setItemAsync(LOCAL_DEMO_PROFILE_KEY, JSON.stringify({ user: res.user, org: res.org }));
+      await storageSet(TOKEN_KEY, res.token);
+      await storageSet(LOCAL_DEMO_PROFILE_KEY, JSON.stringify({ user: res.user, org: res.org }));
       setToken(res.token);
       setUser(res.user);
       setOrg(res.org);
       return;
     }
     const res = await loginUser({ email, password });
-    await SecureStore.setItemAsync(TOKEN_KEY, res.token);
+    await storageSet(TOKEN_KEY, res.token);
     setToken(res.token);
     setUser(res.user);
     setOrg(res.org);
@@ -104,23 +104,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error("Enter email and password.");
       }
       const res = buildLocalDemoSession({ email, name });
-      await SecureStore.setItemAsync(TOKEN_KEY, res.token);
-      await SecureStore.setItemAsync(LOCAL_DEMO_PROFILE_KEY, JSON.stringify({ user: res.user, org: res.org }));
+      await storageSet(TOKEN_KEY, res.token);
+      await storageSet(LOCAL_DEMO_PROFILE_KEY, JSON.stringify({ user: res.user, org: res.org }));
       setToken(res.token);
       setUser(res.user);
       setOrg(res.org);
       return;
     }
     const res = await registerUser({ name, email, password });
-    await SecureStore.setItemAsync(TOKEN_KEY, res.token);
+    await storageSet(TOKEN_KEY, res.token);
     setToken(res.token);
     setUser(res.user);
     setOrg(res.org);
   }, []);
 
   const signOut = useCallback(async () => {
-    await SecureStore.deleteItemAsync(TOKEN_KEY);
-    await SecureStore.deleteItemAsync(LOCAL_DEMO_PROFILE_KEY);
+    await storageDelete(TOKEN_KEY);
+    await storageDelete(LOCAL_DEMO_PROFILE_KEY);
     setToken(null);
     setUser(null);
     setOrg(null);
